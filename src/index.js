@@ -1,13 +1,13 @@
 import * as PIXI from 'pixi.js'
-import hitTestRectangle from './utils/hitTestRectangle';
-import contain from './utils/contain';
+import play from './utils/play';
+import controller from './utils/controller';
 // const application = PIXI.Application;
 // const loader = PIXI.loader;
 // const resources = PIXI.loader.resources;
 // const sprite = PIXI.Sprite;
 // const container = PIXI.Container;
 
-const { Application, loader, Sprite, Container, TextStyle } = PIXI;
+const { Application, loader, Sprite, Container, TextStyle, Text } = PIXI;
 const { resources } = loader;
 
 const options = {
@@ -100,34 +100,33 @@ function setup() {
     gameScene.addChild(blob);
   }
 
-  blobs.forEach(function (blob) {
-
-    //Move the blob
-    blob.y += blob.vy;
-
-    //Check the blob's screen boundaries
-    let blobHitsWall = contain(blob, { x: 28, y: 10, width: 488, height: 480 });
-
-    //If the blob hits the top or bottom of the stage, reverse
-    //its direction
-    if (blobHitsWall === "top" || blobHitsWall === "bottom") {
-      blob.vy *= -1;
-    }
-
-    //Test for a collision. If any of the enemies are touching
-    //the explorer, set `explorerHit` to `true`
-    if (hitTestRectangle(explorer, blob)) {
-      explorerHit = true;
-    }
-  });
-
   const healthBar = createHealthBar(gameScene, stage);
-  const words = createGameOverFont(gameOverScene, stage);
+  const message = createGameOverFont(gameOverScene, stage);
 
-  function play(delta) {
-    explorer.x += explorer.vx;
-    explorer.y += explorer.vy;
+  controller(explorer);
+
+  function end() {
+    gameScene.visible = false;
+    gameOverScene.visible = true;
   }
+
+  let state = null;
+  const start = play(explorer, blobs, treasure, door, message, healthBar);
+  state = start;
+  function gameLoop(delta) {
+    //Update the current game state:
+    const result = state(delta);
+    if (result === undefined) return;
+    if (result == 1) {
+      message.text = "You won!";
+    } else {
+      message.text = "You lost!";
+    }
+    if (result !== undefined) {
+      state = end;
+    }
+  }
+  app.ticker.add(delta => gameLoop(delta));
 }
 
 function randomInt(min, max) {
@@ -170,6 +169,6 @@ function createGameOverFont(gameOverScene, stage) {
   message.y = stage.height / 2 - 32;
   gameOverScene.addChild(message);
 
-  return style;
+  return message;
 }
 
